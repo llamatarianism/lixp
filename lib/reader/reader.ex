@@ -26,6 +26,10 @@ defmodule Lisp.Reader do
       # If the token contains only digits
       token =~ ~r/^\d+$/ ->
         String.to_integer token
+      token =~ "true" ->
+        true
+      token =~ "false" ->
+        false
       # If the token is enclosed in double quotes
       token =~ ~r/^".+"$/ ->
         String.slice(token, 1, String.length(token) - 2)

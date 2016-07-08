@@ -20,6 +20,14 @@ defmodule Lisp.Reader.Eval do
     arg
   end
 
+  def eval([:if, condition, then_form, else_form], env) do
+    if eval(condition, env) == true do
+      eval(then_form, env)
+    else
+      eval(else_form, env)
+    end
+  end
+
   def eval([f | args], env) do
     partially_evaluated = Enum.map(args, fn
     # If the argument is a list, `eval` it as well.

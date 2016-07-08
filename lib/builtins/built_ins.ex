@@ -84,10 +84,21 @@ defmodule Lisp.BuiltIns do
   end
 
   @spec list([Types.valid_term]) :: [Types.valid_term]
-  def list(args), do: args
+  defp list(args), do: args
 
   @spec tuple([Types.valid_term]) :: tuple
-  def tuple(args), do: List.to_tuple(args)
+  defp tuple(args), do: List.to_tuple(args)
+
+  @spec cons([Types.valid_term]) :: [Types.valid_term]
+  defp cons([x, l]), do: [x | l]
+
+  @spec head([Types.valid_term]) :: Types.valid_term
+  defp head([]), do: nil
+  defp head([[x | _xs]]), do: x
+
+  @spec tail([Types.valid_term]) :: Types.valid_term
+  defp tail([]), do: nil
+  defp tail([[_x | xs]]), do: xs
 
   @doc """
     Returns a hashmap that maps Lisp symbols (e.g. 'begin, '+, 'display) to the
@@ -109,6 +120,9 @@ defmodule Lisp.BuiltIns do
       pi: 3.14159265359,
       list: &list/1,
       tuple: &tuple/1,
+      cons: &cons/1,
+      head: &head/1,
+      tail: &tail/1,
     }
   end
 end
