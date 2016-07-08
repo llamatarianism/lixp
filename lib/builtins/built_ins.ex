@@ -7,6 +7,7 @@ defmodule Lisp.BuiltIns do
     Functions that are possible to define in Lixp are found in modules.
   """
   alias Lisp.Types
+  alias Lisp.Lambda
 
   @doc """
     Executes several forms one after the other and returns the value of the
@@ -82,12 +83,19 @@ defmodule Lisp.BuiltIns do
     newline
   end
 
+  @spec list([Types.valid_term]) :: [Types.valid_term]
+  def list(args), do: args
+
+  @spec tuple([Types.valid_term]) :: tuple
+  def tuple(args), do: List.to_tuple(args)
+
   @doc """
     Returns a hashmap that maps Lisp symbols (e.g. 'begin, '+, 'display) to the
     corresponding Elixir function.
   """
   def std_env do
-    %{+: &add/1,
+    %{
+      +: &add/1,
       -: &subtract/1,
       *: &multiply/1,
       /: &divide/1,
@@ -98,6 +106,9 @@ defmodule Lisp.BuiltIns do
       display: &display/1,
       newline: &newline/1,
       displayln: &displayln/1,
-      pi: 3.14159265359}
+      pi: 3.14159265359,
+      list: &list/1,
+      tuple: &tuple/1,
+    }
   end
 end

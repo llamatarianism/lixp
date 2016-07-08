@@ -9,4 +9,5 @@ defmodule Lisp.Types do
     | nil
     | [valid_term]
     | struct
+    | tuple
 end

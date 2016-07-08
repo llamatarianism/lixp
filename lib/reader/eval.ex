@@ -12,6 +12,10 @@ defmodule Lisp.Reader.Eval do
     Env.define(env, f, %Lambda{params: params, body: body, env: env})
   end
 
+  def eval([:lambda, params | body], env) do
+    %Lambda{params: params, body: body, env: env}
+  end
+
   def eval([:quote, arg], _env) do
     arg
   end
@@ -28,11 +32,14 @@ defmodule Lisp.Reader.Eval do
       arg ->
         arg
     end)
-    env_f = Env.lookup(env, f)
-    if is_function(env_f) do
-      env_f.(partially_evaluated)
-    else
-      Lambda.call env_f, partially_evaluated
+
+    case Env.lookup(env, f) do
+      fun when is_function(fun) ->
+        fun.(partially_evaluated)
+      lambda = %Lambda{} ->
+        Lambda.call(lambda, partially_evaluated)
+      _ ->
+        Lambda.call(eval(f, env), partially_evaluated)
     end
   end
 

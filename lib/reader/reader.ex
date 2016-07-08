@@ -5,18 +5,17 @@ defmodule Lisp.Reader do
 
   alias Lisp.Types
   alias Lisp.Reader.Eval
+  alias Lisp.Lambda
 
   @spec tokenise(String.t) :: [String.t]
-  defp tokenise(expr) do
+  def tokenise(expr) do
     expr
-    |> String.replace("(", " ( ")
-    |> String.replace(")", " ) ")
-    |> String.split("\"")
-    |> Enum.flat_map(&String.split/1)
+    |> String.replace(~r/([\{\}\(\)])/, " \\1 ")
+    |> String.split
   end
 
   @spec atomise(String.t) :: Types.valid_term
-  defp atomise(token) do
+  def atomise(token) do
     cond do
       # If the token contains whitespace, it's not a bloody token.
       token =~ ~r/\s/ ->
@@ -40,52 +39,61 @@ defmodule Lisp.Reader do
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   @spec read([String.t]) :: [Types.valid_term]
-  defp read([]) do
+  def read([]) do
     []
   end
 
-  defp read(["(" | _tokens] = all_tokens) do
+  def read(["(" | _tokens] = all_tokens) do
     {fst, snd} = Enum.split(all_tokens, matching_paren_index(all_tokens))
     [read(Enum.drop(fst, 1)) | read(Enum.drop(snd, 1))]
   end
 
-  defp read([")" | _tokens]) do
-    raise "Unexpected closed paren while reading"
+  def read([")" | _tokens]) do
+    raise "Unexpected list delimiter while reading"
   end
 
-  defp read([token | tokens]) do
+  def read(["{" | _tokens] = all_tokens) do
+    {fst, snd} = Enum.split(all_tokens, matching_paren_index(all_tokens, {"{", "}"}))
+    [[:tuple | read(Enum.drop(fst, 1))] | read(Enum.drop(snd, 1))]
+  end
+
+  def read(["}" | _tokens]) do
+    raise "Unexpected tuple delimiter while reading"
+  end
+
+  def read([token | tokens]) do
     [atomise(token) | read(tokens)]
   end
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-  @spec matching_paren_index([String.t]) :: non_neg_integer | nil
-  defp matching_paren_index(["(" | _rest] = tokens) do
+  @spec matching_paren_index([String.t], {String.t, String.t}) :: non_neg_integer | nil
+  defp matching_paren_index(tokens, type \\ {"(", ")"}) do
     tokens
     |> Enum.with_index
     |> Enum.drop(1)
-    |> do_matching_paren_index([])
+    |> do_matching_paren_index([], type)
   end
 
-  @spec do_matching_paren_index([String.t], [String.t]) :: non_neg_integer | nil
-  defp do_matching_paren_index([], _stack) do
+  @spec do_matching_paren_index([String.t], [String.t], {String.t, String.t}) :: non_neg_integer | nil
+  defp do_matching_paren_index([], _stack, _type) do
     nil
   end
 
-  defp do_matching_paren_index([{"(", _i} | tokens], stack) do
-    do_matching_paren_index(tokens, ["(" | stack])
+  defp do_matching_paren_index([{open, _i} | tokens], stack, {open, _close} = type) do
+    do_matching_paren_index(tokens, [open | stack], type)
   end
 
-  defp do_matching_paren_index([{")", i} | _tokens], []) do
+  defp do_matching_paren_index([{close, i} | _tokens], [], {_open, close}) do
     i
   end
 
-  defp do_matching_paren_index([{")", _i} | tokens], stack) do
-    do_matching_paren_index(tokens, Enum.drop(stack, 1))
+  defp do_matching_paren_index([{close, _i} | tokens], stack, {_open, close} = type) do
+    do_matching_paren_index(tokens, Enum.drop(stack, 1), type)
   end
 
-  defp do_matching_paren_index([_token | tokens], stack) do
-    do_matching_paren_index(tokens, stack)
+  defp do_matching_paren_index([_token | tokens], stack, type) do
+    do_matching_paren_index(tokens, stack, type)
   end
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -119,6 +127,39 @@ defmodule Lisp.Reader do
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+defp lispy_print(list) when is_list(list) do
+  list
+  |> Enum.map(&lispy_print/1)
+  |> Enum.join(" ")
+  |> (fn s -> "(#{s})" end).()
+end
+
+defp lispy_print(tuple) when is_tuple(tuple) do
+  tuple
+  |> Tuple.to_list
+  |> Enum.map(&lispy_print/1)
+  |> Enum.join(" ")
+  |> (fn s -> "{#{s}}" end).()
+end
+
+defp lispy_print(str) when is_binary(str) do
+  "\"" <> str <> "\""
+end
+
+defp lispy_print(%Lambda{params: params, body: body}) do
+  "<Lambda | Params: #{Enum.map(params, &lispy_print/1)} | Body: #{lispy_print(body)}>"
+end
+
+defp lispy_print(nil) do
+  "nil"
+end
+
+defp lispy_print(term) do
+  to_string term
+end
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
   @spec read_input(pid, non_neg_integer, [String.t]) :: nil
   def read_input(env, num \\ 0, read_so_far \\ []) do
     tokens =
@@ -132,12 +173,12 @@ defmodule Lisp.Reader do
       not check_parens(read_so_far ++ tokens) ->
         read_input(env, num, read_so_far ++ tokens)
       :else ->
-        :ok =
-          read_so_far
-          |> Kernel.++(tokens)
-          |> read
-          |> (fn x -> apply(&Eval.eval(&1, env), x) end).()
-          |> IO.puts
+        read_so_far
+        |> Kernel.++(tokens)
+        |> read
+        |> (fn x -> apply(&Eval.eval(&1, env), x) end).()
+        |> lispy_print
+        |> IO.puts
         read_input(env, num + 1, [])
     end
   end
