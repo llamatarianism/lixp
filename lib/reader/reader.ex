@@ -119,7 +119,7 @@ defmodule Lisp.Reader do
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-  @spec read_input(non_neg_integer, [String.t], map) :: nil
+  @spec read_input(pid, non_neg_integer, [String.t]) :: nil
   def read_input(env, num \\ 0, read_so_far \\ []) do
     tokens =
       "lixp(#{num})> "

@@ -3,7 +3,7 @@ defmodule Lisp.Reader.Eval do
   alias Lisp.Env
   alias Lisp.Lambda
 
-  @spec eval([Types.valid_term] | Types.valid_term, map) :: any
+  @spec eval(Types.valid_term, pid) :: Types.valid_term | no_return
   def eval([:define, sym | body], env) when is_atom(sym) do
     Env.define(env, sym, apply(&eval(&1, env), body))
   end

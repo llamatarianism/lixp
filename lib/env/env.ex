@@ -3,7 +3,7 @@ defmodule Lisp.Env do
 `   A GenServer that stores the values of all variables`
   """
   use GenServer
-  alias Lisp.BuiltIns
+  alias Lisp.Types
 
   def start_link(vars) do
     GenServer.start_link(__MODULE__, {:ok, vars})
